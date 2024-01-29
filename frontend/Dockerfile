@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 3333
 
 # Command to run the application
-CMD ["npm", "run", "serve"]
+CMD ["npm", "run", "preview"]
