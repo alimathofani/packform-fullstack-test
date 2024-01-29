@@ -36,3 +36,7 @@ Follow these steps to get the project up and running:
     npm run dev
 
 7. access to http://localhost:3333/orders
+
+8. test (*should be on frontend folder to run this command)
+    ```bash
+    npm run test:unit
