@@ -73,7 +73,7 @@ const deliveryAmount = (order: Order) => {
   order.order_items.forEach((item) => {
     const mapQuantity = item.deliveries.map(item => Number(item.delivered_quantity))
     let sumQuantity = mapQuantity.length > 0 ? mapQuantity.reduce((prev, next) => (prev + next)) : 0
-    total = item.price_per_unit * sumQuantity
+    total += item.price_per_unit * sumQuantity
   });
   return total
 }
@@ -81,10 +81,18 @@ const deliveryAmount = (order: Order) => {
 const totalAmount = (order: Order) => {
   let total = 0
   order.order_items.forEach((item) => {
-    total = item.price_per_unit * Number(item.quantity)
+    total += item.price_per_unit * Number(item.quantity)
   });
   return total
 }
+
+const totalOrders = computed(() => {
+  let total = 0
+  orders.value.data.forEach(item => {
+    total += totalAmount(item)
+  })
+  return total
+})
 
 const readableDate = (date: string) => {
   return dayjs(date || '2006-01-02').format('MMM Do, hh:mm a')
@@ -154,7 +162,7 @@ watch(
         </div>
       </div>
       <div>
-        <!-- Total amount: ${{ totalAmount }} -->
+        Total amount: ${{ totalOrders }}
       </div>
     </div>
     <table class="w-full text-sm text-left rtl:text-right text-gray-500">
@@ -213,7 +221,7 @@ watch(
             {{ readableDate(item.created_at) }}
           </td>
           <td class="px-6 py-4">
-            ${{ deliveryAmount(item) }}
+            {{ deliveryAmount(item) ? `$${deliveryAmount(item)}` : '-' }}
           </td>
           <td class="px-6 py-4">
             ${{ totalAmount(item) }}
