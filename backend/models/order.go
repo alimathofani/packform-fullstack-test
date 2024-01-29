@@ -3,23 +3,10 @@ package models
 import "time"
 
 type Order struct {
-  ID uint `json:"id" gorm:"primary_key"`
-  Title string `json:"title"`
-  Description string `json:"description"`
-  Reward int `json:"reward"`
-  CategoryID uint `json:"category_id"`
+  ID int `json:"id" gorm:"primary_key"`
+  OrderName string `json:"order_name"`
+  CustomerID string `json:"customer_id"`
+  Customer Customer `json:"customer" gorm:"references:UserID"`
+  OrderItems []OrderItem `json:"order_items"`
   CreatedAt time.Time `json:"created_at"`
-  UpdatedAt time.Time `json:"updated_at"`
-}
-
-func NewOrder(title string, description string, reward int) (order *Order, err error){
-  order = &Order{
-    Title: title,
-    Description: description,
-    Reward: reward,
-  }
-
-  DB.Create(&order)
-
-  return order, nil
 }

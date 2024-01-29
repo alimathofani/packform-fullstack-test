@@ -1,119 +1,117 @@
 package controllers
 
 import (
+	"math"
+	"strings"
 	"encoding/json"
-	// "io/ioutil"
 	"net/http"
-
-	// "github.com/go-playground/validator/v10"
-	// "github.com/gorilla/mux"
+	"strconv"
+	"time"
 	"github.com/alimathofani/packform-fullstack-test/backend/models"
-	// "github.com/alimathofani/packform-fullstack-test/backend/utils"
 )
 
-// var validate *validator.Validate
-
-// type QuestInput struct {
-//   Title string `json:"title" validate:"required"`
-//   Description string `json:"description" validate:"required"`
-//   Reward int `json:"reward" validate:"required"`
-// }
-
-// func CreateQuest(w http.ResponseWriter, r *http.Request){
-//   var input QuestInput
-
-//   body, _ := ioutil.ReadAll(r.Body)
-//   _ = json.Unmarshal(body, &input)
-
-//   validate = validator.New()
-//   err := validate.Struct(input)
-
-//   if err != nil {
-//     utils.RespondWithError(w, http.StatusBadRequest, "Validation Error")
-//     return
-//   }
-
-//   quest, err := models.NewQuest(input.Title, input.Description, input.Reward)
-
-//   w.Header().Set("Content-Type", "application/json")
-
-//   json.NewEncoder(w).Encode(quest)
-
-// }
-
-
-func GetAllOrders(w http.ResponseWriter, r *http.Request){
-  w.Header().Set("Content-Type", "application/json")
-
-  var orders []models.Order
-  models.DB.Find(&orders)
-
-  json.NewEncoder(w).Encode(orders)
+type Pagination struct {
+	Data				[]models.Order `json:"data"`
+	Limit        int         `json:"limit,omitempty;query:limit"`
+	Page         int         `json:"page,omitempty;query:page"`
+	TotalRows    int64       `json:"total_rows"`
+	TotalPages   int         `json:"total_pages"`
 }
 
+func GetAllOrders(w http.ResponseWriter, r *http.Request){
+	// Set CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-// func GetQuest(w http.ResponseWriter, r *http.Request){
-//   w.Header().Set("Content-Type", "application/json")
+	var (
+		orders        	[]models.Order
+		totalPagination int
+		count           int64
+	)
 
-//   id := mux.Vars(r)["id"]
-//   var quest models.Quest
+	page := 0
+	p, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil || p < 1 {
+		page = 0
+	} else if p > 1{
+		page = p - 1
+	}
 
-//   if err := models.DB.Where("id = ?", id).First(&quest).Error; err != nil{
-//     utils.RespondWithError(w, http.StatusNotFound, "Quest not found")
-//     return
-//   }
-
-//   json.NewEncoder(w).Encode(quest)
-// }
-
-
-// func DeleteQuest(w http.ResponseWriter, r *http.Request){
-//   w.Header().Set("Content-Type", "application/json")
-
-//   id := mux.Vars(r)["id"]
-//   var quest models.Quest
-
-//   if err := models.DB.Where("id = ?", id).First(&quest).Error; err != nil{
-//     utils.RespondWithError(w, http.StatusNotFound, "Quest not found")
-//     return
-//   }
-
-//   models.DB.Delete(&quest)
-
-//   w.WriteHeader(http.StatusNoContent)
-//   json.NewEncoder(w).Encode(quest)
-// }
+	limit := 5
+	l, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil {
+		limit = 5
+	} else {
+		limit = l
+	}
 
 
-// func UpdateQuest(w http.ResponseWriter, r *http.Request){
-//   w.Header().Set("Content-Type", "application/json")
+	query := models.DB.Model(&orders).
+		Preload("Customer.Company").
+		Preload("OrderItems").
+		Preload("OrderItems.Deliveries")
 
-//   id := mux.Vars(r)["id"]
-//   var quest models.Quest
+	q := r.URL.Query().Get("q")
 
-//   if err := models.DB.Where("id = ?", id).First(&quest).Error; err != nil{
-//     utils.RespondWithError(w, http.StatusNotFound, "Quest not found")
-//     return
-//   }
+	if q != "" {
+		query = query.
+			Joins("JOIN order_items ON orders.id = order_items.order_id").
+			Joins("JOIN customers ON orders.customer_id = customers.user_id").
+			Joins("JOIN companies ON customers.company_id = companies.company_id").
+			Where("LOWER(orders.order_name) LIKE ?", strings.ToLower(q)+"%").
+			Or("LOWER(customers.name) LIKE ?", strings.ToLower(q)+"%").
+			Or("LOWER(orders.customer_id) LIKE ?", strings.ToLower(q)+"%").
+			Or("LOWER(order_items.product) LIKE ?", strings.ToLower(q)+"%").
+			Or("LOWER(companies.company_name) LIKE ?", strings.ToLower(q)+"%")
+	}
 
-//   var input QuestInput
+	startDateParam := r.URL.Query().Get("start_date")
+	endDateParam := r.URL.Query().Get("end_date")
 
-//   body, _ := ioutil.ReadAll(r.Body)
-//   _ = json.Unmarshal(body, &input)
+	if startDateParam != "" || endDateParam != "" {
+		location, err := time.LoadLocation("Australia/Melbourne")
+		if err != nil {
+			return
+		}
 
-//   validate = validator.New()
-//   err := validate.Struct(input)
+		if startDateParam != "" {
+			startDate, err := time.ParseInLocation("2006-01-02", startDateParam, location)
+			if err != nil {
+				return
+			}
+			query = query.Where("orders.created_at >= ?", startDate)
+		}
 
-//   if err != nil {
-//     utils.RespondWithError(w, http.StatusBadRequest, "Validation Error")
-//     return
-//   }
+		if endDateParam != "" {
+			endDate, err := time.ParseInLocation("2006-01-02", endDateParam, location)
+			if err != nil {
+				return
+			}
+			query = query.Where("orders.created_at <= ?", endDate.Add(24*time.Hour))
+		}
+	}
 
-//   quest.Title = input.Title
-//   quest.Description = input.Description
-//   quest.Reward = input.Reward
+	sort := r.URL.Query().Get("order_date")
+	switch strings.ToLower(sort) {
+		case "asc":
+			query = query.Order("orders.created_at ASC")
+		case "desc":
+			query = query.Order("orders.created_at DESC")
+		}
 
-//   models.DB.Save(&quest)
+	query.Count(&count)
 
-//   json.NewEncoder(w).Encode(quest)
-// }
+	query.
+		Limit(limit).
+		Offset(page * limit).
+		Find(&orders)
+
+
+	pageDivision := float64(count) / float64(limit)
+	totalPagination = int(math.Ceil(pageDivision))
+	resp := Pagination{Data: orders, Limit: limit, Page: page + 1, TotalRows: count, TotalPages: totalPagination }
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
