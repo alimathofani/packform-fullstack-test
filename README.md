@@ -27,7 +27,7 @@ Follow these steps to get the project up and running:
     ```bash
     cd frontend
 
-5. please install node version 18 and install dependencies with this command
+5. install dependencies
     ```bash
     npm install
 
